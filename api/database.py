@@ -3,9 +3,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # DATABASE_URL examples:
-# - SQLite (default): sqlite:///./rifamax.db
-# - PostgreSQL: postgresql+psycopg://user:password@localhost:5432/rifamax
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./rifamax.db")
+# - SQLite (default): sqlite:///./rifa.db
+# - PostgreSQL: postgresql+psycopg://user:password@localhost:5432/rifa
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./rifa.db")
 
 # SQLite needs check_same_thread=False for multithreaded servers
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}

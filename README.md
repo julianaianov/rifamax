@@ -1,4 +1,4 @@
-## RifaMax
+## Rifa Aí
 
 Aplicação de rifas com frontend em Next.js e backend em FastAPI + SQLite, integrada ao Stripe Checkout.
 
@@ -10,7 +10,7 @@ Aplicação de rifas com frontend em Next.js e backend em FastAPI + SQLite, inte
 ### Estrutura
 - `app/`: Next.js (rotas, componentes e API routes)
 - `api/`: FastAPI (API e banco de dados)
-- `rifamax.db`: banco SQLite (ignorado pelo git)
+- `rifa.db`: banco SQLite (ignorado pelo git)
 
 ### Variáveis de ambiente
 Crie o arquivo `.env.local` na raiz do projeto para o Next.js:

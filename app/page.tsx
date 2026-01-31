@@ -81,7 +81,7 @@ export default function HomePage() {
             <div className="mx-auto max-w-3xl text-center">
               <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Concorra a Premios Incriveis com a{" "}
-                <span className="text-primary">RifaMax</span>
+                <span className="text-primary">Rifa Aí</span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground">
                 A plataforma mais confiavel de rifas online do Brasil. Escolha seus numeros,

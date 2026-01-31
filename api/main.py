@@ -1,5 +1,5 @@
 """
-RifaMax - Sistema de Rifas Online
+Rifa Aí - Sistema de Rifas Online
 Backend API com FastAPI e Python
 """
 
@@ -18,7 +18,7 @@ from .models import Raffle, RaffleNumber, Purchase, User
 from .security import hash_password, verify_password, create_access_token, get_current_user
 
 app = FastAPI(
-    title="RifaMax API",
+    title="Rifa Aí API",
     description="API para sistema de rifas online",
     version="1.0.0"
 )
@@ -204,7 +204,7 @@ def on_startup():
 # Routes
 @app.get("/")
 async def root():
-    return {"message": "Bem-vindo a API RifaMax!", "version": "1.0.0"}
+    return {"message": "Bem-vindo à API Rifa Aí!", "version": "1.0.0"}
 
 
 @app.get("/health")
