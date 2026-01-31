@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rifamax-api
+    env: python
+    plan: free
+    buildCommand: pip install -r api/requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rifamax-db
+          property: connectionString
+
+databases:
+  - name: rifamax-db
+    plan: free
+
