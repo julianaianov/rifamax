@@ -59,4 +59,18 @@ class RaffleNumber(Base):
     raffle: Mapped[Raffle] = relationship(back_populates="numbers")
     purchase: Mapped[Purchase | None] = relationship(back_populates="numbers")
 
+class User(Base):
+    __tablename__ = "users"
+    # Autenticação e dados do usuário
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    cpf: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    address: Mapped[str] = mapped_column(String, nullable=False)
+    phone: Mapped[str] = mapped_column(String, nullable=False)
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 

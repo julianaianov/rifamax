@@ -14,7 +14,8 @@ import random
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_
 from .database import Base, engine, get_db
-from .models import Raffle, RaffleNumber, Purchase
+from .models import Raffle, RaffleNumber, Purchase, User
+from .security import hash_password, verify_password, create_access_token, get_current_user
 
 app = FastAPI(
     title="RifaMax API",
@@ -113,6 +114,29 @@ class DrawResult(BaseModel):
     winner_email: Optional[str] = None
     drawn_at: str
 
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    name: str
+    cpf: str
+    address: str
+    phone: str
+    email: EmailStr
+
+class UserResponse(BaseModel):
+    id: str
+    username: str
+    name: str
+    cpf: str
+    address: str
+    phone: str
+    email: EmailStr
+    created_at: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
 @app.on_event("startup")
 def on_startup():
     # Create tables
@@ -186,6 +210,66 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Auth Routes
+@app.post("/api/auth/register", response_model=UserResponse)
+async def register_user(payload: UserRegister, db: Session = Depends(get_db)):
+    # Verificar unicidade de username, email e cpf
+    exists = db.execute(
+        select(User).where(
+            (User.username == payload.username) | (User.email == str(payload.email)) | (User.cpf == payload.cpf)
+        )
+    ).scalars().first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Usuario, email ou CPF já cadastrado")
+    user = User(
+        id=str(uuid.uuid4()),
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+        name=payload.name,
+        cpf=payload.cpf,
+        address=payload.address,
+        phone=payload.phone,
+        email=str(payload.email),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "name": user.name,
+        "cpf": user.cpf,
+        "address": user.address,
+        "phone": user.phone,
+        "email": user.email,
+        "created_at": user.created_at.isoformat(),
+    }
+
+class LoginPayload(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login(payload: LoginPayload, db: Session = Depends(get_db)):
+    user = db.execute(select(User).where(User.username == payload.username)).scalars().first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    token = create_access_token({"sub": user.id})
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def me(current: User = Depends(get_current_user)):
+    return {
+        "id": current.id,
+        "username": current.username,
+        "name": current.name,
+        "cpf": current.cpf,
+        "address": current.address,
+        "phone": current.phone,
+        "email": current.email,
+        "created_at": current.created_at.isoformat(),
+    }
 
 
 # Raffle Routes
