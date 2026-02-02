@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rifamax-api
+    name: rifa-ai-api
     env: python
     plan: free
     buildCommand: pip install -r api/requirements.txt
@@ -10,10 +10,10 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: rifamax-db
+          name: rifa-db
           property: connectionString
 
 databases:
-  - name: rifamax-db
+  - name: rifa-db
     plan: free
 

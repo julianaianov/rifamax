@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -37,60 +38,29 @@ import {
 } from "lucide-react"
 import type { Raffle } from "@/lib/types"
 
-// Mock data
-const initialRaffles: Raffle[] = [
-  {
-    id: "1",
-    title: "iPhone 15 Pro Max 256GB",
-    description: "Concorra a um iPhone 15 Pro Max novinho na caixa lacrada com garantia Apple.",
-    prize: "iPhone 15 Pro Max",
-    price: 5.0,
-    total_numbers: 100,
-    draw_date: "2025-02-15",
-    status: "active",
-    created_at: "2025-01-01",
-    image_url: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60",
-  },
-  {
-    id: "2",
-    title: "PlayStation 5 + 3 Jogos",
-    description: "Console PlayStation 5 edicao digital com 3 jogos a escolha do ganhador.",
-    prize: "PS5 Digital",
-    price: 3.0,
-    total_numbers: 200,
-    draw_date: "2025-02-20",
-    status: "active",
-    created_at: "2025-01-05",
-    image_url: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&auto=format&fit=crop&q=60",
-  },
-  {
-    id: "3",
-    title: "Notebook Gamer ASUS ROG",
-    description: "Notebook gamer de alta performance com RTX 4070 e processador Intel i9.",
-    prize: "Notebook Gamer",
-    price: 10.0,
-    total_numbers: 150,
-    draw_date: "2025-03-01",
-    status: "active",
-    created_at: "2025-01-10",
-    image_url: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&auto=format&fit=crop&q=60",
-  },
-]
+// Inicial vazio; será preenchido conforme o usuário criar novas rifas
+const initialRaffles: Raffle[] = []
 
 const mockStats = {
-  totalRaffles: 3,
-  activeRaffles: 3,
-  totalSales: 275,
-  totalRevenue: 1375.0,
+  totalRaffles: 0,
+  activeRaffles: 0,
+  totalSales: 0,
+  totalRevenue: 0.0,
 }
 
-const mockSoldNumbers: Record<string, number> = {
-  "1": 45,
-  "2": 120,
-  "3": 80,
-}
+const mockSoldNumbers: Record<string, number> = {}
 
 export default function AdminPage() {
+  // Require login: if no token, redirect to /login
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login"
+      }
+    }
+  }
+
   const [raffles, setRaffles] = useState<Raffle[]>(initialRaffles)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDrawOpen, setIsDrawOpen] = useState(false)
@@ -105,31 +75,72 @@ export default function AdminPage() {
     draw_date: "",
     image_url: "",
   })
+  const [uploading, setUploading] = useState(false)
+  const { toast } = useToast()
 
-  const handleCreateRaffle = () => {
-    const raffle: Raffle = {
-      id: String(Date.now()),
-      title: newRaffle.title,
-      description: newRaffle.description,
-      prize: newRaffle.prize,
-      price: Number.parseFloat(newRaffle.price),
-      total_numbers: Number.parseInt(newRaffle.total_numbers),
-      draw_date: newRaffle.draw_date,
-      image_url: newRaffle.image_url || undefined,
-      status: "active",
-      created_at: new Date().toISOString(),
+  const handleCreateRaffle = async () => {
+    // Create via FastAPI; fallback to local state on failure
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/raffles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newRaffle.title,
+          description: newRaffle.description,
+          prize: newRaffle.prize,
+          price: Number.parseFloat(newRaffle.price),
+          total_numbers: Number.parseInt(newRaffle.total_numbers),
+          draw_date: newRaffle.draw_date,
+          image_url: newRaffle.image_url || null,
+        }),
+      })
+      if (res.ok) {
+        const created = (await res.json()) as Raffle
+        setRaffles([...raffles, created])
+      } else {
+        // fallback local
+        const raffle: Raffle = {
+          id: String(Date.now()),
+          title: newRaffle.title,
+          description: newRaffle.description,
+          prize: newRaffle.prize,
+          price: Number.parseFloat(newRaffle.price),
+          total_numbers: Number.parseInt(newRaffle.total_numbers),
+          draw_date: newRaffle.draw_date,
+          image_url: newRaffle.image_url || undefined,
+          status: "active",
+          created_at: new Date().toISOString(),
+        }
+        setRaffles([...raffles, raffle])
+      }
+    } catch {
+      // fallback on network error
+      const raffle: Raffle = {
+        id: String(Date.now()),
+        title: newRaffle.title,
+        description: newRaffle.description,
+        prize: newRaffle.prize,
+        price: Number.parseFloat(newRaffle.price),
+        total_numbers: Number.parseInt(newRaffle.total_numbers),
+        draw_date: newRaffle.draw_date,
+        image_url: newRaffle.image_url || undefined,
+        status: "active",
+        created_at: new Date().toISOString(),
+      }
+      setRaffles([...raffles, raffle])
+    } finally {
+      setNewRaffle({
+        title: "",
+        description: "",
+        prize: "",
+        price: "",
+        total_numbers: "",
+        draw_date: "",
+        image_url: "",
+      })
+      setIsCreateOpen(false)
     }
-    setRaffles([...raffles, raffle])
-    setNewRaffle({
-      title: "",
-      description: "",
-      prize: "",
-      price: "",
-      total_numbers: "",
-      draw_date: "",
-      image_url: "",
-    })
-    setIsCreateOpen(false)
   }
 
   const handleDeleteRaffle = (id: string) => {
@@ -278,6 +289,45 @@ export default function AdminPage() {
                         setNewRaffle({ ...newRaffle, image_url: e.target.value })
                       }
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="image_file">Ou enviar imagem</Label>
+                    <Input
+                      id="image_file"
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        setUploading(true)
+                        try {
+                          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+                          const fd = new FormData()
+                          fd.append("file", file)
+                          const res = await fetch(`${apiBaseUrl}/api/upload-image`, {
+                            method: "POST",
+                            body: fd,
+                          })
+                          if (!res.ok) {
+                            toast({ title: "Falha no upload", description: "Não foi possível enviar a imagem.", variant: "destructive" })
+                          } else {
+                            const data = await res.json()
+                            setNewRaffle((r) => ({ ...r, image_url: data.url }))
+                            toast({ title: "Imagem enviada", description: "Upload concluído com sucesso." })
+                          }
+                        } catch {
+                          toast({ title: "Erro de rede", description: "Falha ao enviar a imagem.", variant: "destructive" })
+                        } finally {
+                          setUploading(false)
+                        }
+                      }}
+                    />
+                    {newRaffle.image_url && (
+                      <div className="rounded-lg border p-2">
+                        <img src={newRaffle.image_url} alt="Pré-visualização" className="h-28 w-full object-cover" />
+                      </div>
+                    )}
+                    {uploading && <p className="text-xs text-muted-foreground">Enviando imagem...</p>}
                   </div>
                   <Button onClick={handleCreateRaffle} className="w-full">
                     Criar Rifa

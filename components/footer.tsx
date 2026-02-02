@@ -11,7 +11,7 @@ export function Footer() {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
                 <Ticket className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">RifaMax</span>
+              <span className="text-xl font-bold text-foreground">Rifa Aí</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               A melhor plataforma de rifas online do Brasil. Segura, transparente e confiavel.
@@ -87,7 +87,7 @@ export function Footer() {
               Contato
             </h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>contato@rifamax.com.br</li>
+              <li>contato@rifa.com.br</li>
               <li>(11) 99999-9999</li>
               <li>Seg - Sex: 9h - 18h</li>
             </ul>
@@ -96,7 +96,7 @@ export function Footer() {
 
         <div className="mt-8 border-t border-border pt-8 text-center">
           <p className="text-sm text-muted-foreground">
-            2025 RifaMax. Todos os direitos reservados.
+            2025 Rifa Aí. Todos os direitos reservados.
           </p>
         </div>
       </div>
