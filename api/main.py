@@ -3,7 +3,9 @@ Rifa Aí - Sistema de Rifas Online
 Backend API com FastAPI e Python
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+import os
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -12,10 +14,11 @@ from enum import Enum
 import uuid
 import random
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from .database import Base, engine, get_db
 from .models import Raffle, RaffleNumber, Purchase, User
 from .security import hash_password, verify_password, create_access_token, get_current_user
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(
     title="Rifa Aí API",
@@ -26,11 +29,17 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Em desenvolvimento, especifique as origens do front para evitar bloqueios
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files for uploaded images
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Enums
 class RaffleStatus(str, Enum):
@@ -141,64 +150,7 @@ class TokenResponse(BaseModel):
 def on_startup():
     # Create tables
     Base.metadata.create_all(bind=engine)
-    # Seed only if empty
-    with next(get_db()) as db:
-        existing = db.execute(select(func.count()).select_from(Raffle)).scalar_one()
-        if existing == 0:
-            sample_raffles = [
-                {
-                    "id": "1",
-                    "title": "iPhone 15 Pro Max 256GB",
-                    "description": "Concorra a um iPhone 15 Pro Max novinho na caixa lacrada com garantia Apple.",
-                    "prize": "iPhone 15 Pro Max",
-                    "price": 5.0,
-                    "total_numbers": 100,
-                    "image_url": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60",
-                    "draw_date": "2025-02-15",
-                    "status": "active",
-                    "winner_number": None,
-                },
-                {
-                    "id": "2",
-                    "title": "PlayStation 5 + 3 Jogos",
-                    "description": "Console PlayStation 5 edicao digital com 3 jogos a escolha do ganhador.",
-                    "prize": "PS5 Digital",
-                    "price": 3.0,
-                    "total_numbers": 200,
-                    "image_url": "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&auto=format&fit=crop&q=60",
-                    "draw_date": "2025-02-20",
-                    "status": "active",
-                    "winner_number": None,
-                },
-                {
-                    "id": "3",
-                    "title": "Notebook Gamer ASUS ROG",
-                    "description": "Notebook gamer de alta performance com RTX 4070 e processador Intel i9.",
-                    "prize": "Notebook Gamer",
-                    "price": 10.0,
-                    "total_numbers": 150,
-                    "image_url": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&auto=format&fit=crop&q=60",
-                    "draw_date": "2025-03-01",
-                    "status": "active",
-                    "winner_number": None,
-                },
-            ]
-            for r in sample_raffles:
-                db.add(Raffle(**r))
-            db.commit()
-            # Seed some sold numbers for raffle 1
-            sold_numbers = random.sample(range(1, 100 + 1), 10)
-            for num in sold_numbers:
-                db.add(RaffleNumber(
-                    raffle_id="1",
-                    number=num,
-                    buyer_name=f"Comprador {num}",
-                    buyer_phone=f"(11) 9{num}999-9999",
-                    buyer_email=f"comprador{num}@email.com",
-                    status="sold",
-                    sold_at=datetime.utcnow(),
-                ))
-            db.commit()
+    # Sem seeds: base limpa para receber novos dados
 
 
 # Routes
@@ -270,6 +222,35 @@ async def me(current: User = Depends(get_current_user)):
         "email": current.email,
         "created_at": current.created_at.isoformat(),
     }
+
+@app.post("/api/upload-image")
+async def upload_image(request: Request, file: UploadFile = File(...)):
+    # Validate content type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem")
+    # Derive extension
+    ext = {
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "image/svg+xml": "svg",
+    }.get(file.content_type, None)
+    if ext is None:
+        raise HTTPException(status_code=400, detail="Formato de imagem não suportado")
+    filename = f"{uuid.uuid4()}.{ext}"
+    path = UPLOAD_DIR / filename
+    # Save to disk
+    data = await file.read()
+    try:
+        with path.open("wb") as f:
+            f.write(data)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Falha ao salvar a imagem")
+    base = str(request.base_url)  # ends with '/'
+    url = f"{base}uploads/{filename}"
+    return {"url": url}
 
 
 # Raffle Routes
@@ -558,6 +539,23 @@ async def draw_raffle(raffle_id: str, db: Session = Depends(get_db)):
         "winner_email": winner.buyer_email,
         "drawn_at": datetime.utcnow().isoformat()
     }
+
+
+# Admin maintenance
+@app.post("/api/raffles/{raffle_id}/reset-numbers")
+async def reset_raffle_numbers(raffle_id: str, db: Session = Depends(get_db)):
+    """Zera todos os números (reservados/vendidos) de uma rifa."""
+    r = db.get(Raffle, raffle_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Rifa nao encontrada")
+    count = db.execute(
+        select(func.count()).select_from(RaffleNumber).where(RaffleNumber.raffle_id == raffle_id)
+    ).scalar_one()
+    db.execute(delete(RaffleNumber).where(RaffleNumber.raffle_id == raffle_id))
+    r.status = "active"
+    r.winner_number = None
+    db.commit()
+    return {"raffle_id": raffle_id, "cleared_numbers": int(count), "status": r.status}
 
 
 # Admin Stats

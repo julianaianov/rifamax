@@ -46,6 +46,11 @@ export function Header() {
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
+          <Link href="/register">
+            <Button size="sm" variant="outline" className="bg-transparent">
+              Criar Conta
+            </Button>
+          </Link>
           <Link href="/admin">
             <Button variant="ghost" size="sm">
               Admin
@@ -101,6 +106,11 @@ export function Header() {
               Contato
             </Link>
             <div className="flex gap-2 pt-4">
+              <Link href="/register" className="flex-1">
+                <Button variant="outline" size="sm" className="w-full bg-transparent">
+                  Criar Conta
+                </Button>
+              </Link>
               <Link href="/admin" className="flex-1">
                 <Button variant="outline" size="sm" className="w-full bg-transparent">
                   Admin

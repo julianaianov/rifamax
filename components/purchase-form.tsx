@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface PurchaseFormProps {
   selectedNumbers: number[]
@@ -33,6 +34,7 @@ export function PurchaseForm({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const { toast } = useToast()
 
   const total = selectedNumbers.length * pricePerNumber
   const formattedTotal = new Intl.NumberFormat("pt-BR", {
@@ -47,7 +49,7 @@ export function PurchaseForm({
     try {
       // 1) Register or login user on FastAPI (username = email)
       const apiBaseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
       // Basic validations (extra guard; inputs are required too)
       if (
@@ -60,6 +62,11 @@ export function PurchaseForm({
         !formData.password
       ) {
         setIsSubmitting(false)
+        toast({
+          title: "Preencha todos os campos",
+          description: "Complete seus dados para continuar.",
+          variant: "destructive",
+        })
         return
       }
 
@@ -90,6 +97,11 @@ export function PurchaseForm({
         })
         if (!loginRes.ok) {
           console.error("Falha ao registrar/logar o usuario")
+          toast({
+            title: "Falha ao autenticar",
+            description: "Não foi possível registrar/logar.",
+            variant: "destructive",
+          })
           setIsSubmitting(false)
           return
         }
@@ -112,14 +124,25 @@ export function PurchaseForm({
 
       if (!response.ok) {
         console.error("Erro ao iniciar checkout")
+        toast({
+          title: "Erro ao iniciar pagamento",
+          description: "Tente novamente em instantes.",
+          variant: "destructive",
+        })
         return
       }
       const data = await response.json()
       if (data?.url) {
+        toast({ title: "Redirecionando para pagamento" })
         window.location.href = data.url
       }
     } catch {
       console.error("Erro ao iniciar checkout")
+      toast({
+        title: "Erro de rede",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }

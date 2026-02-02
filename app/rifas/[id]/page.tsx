@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -13,40 +13,47 @@ import { Calendar, Trophy, Users, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import type { Raffle, RaffleNumber } from "@/lib/types"
 
-// Mock data - will be replaced with API
-const mockRaffle: Raffle = {
-  id: "1",
-  title: "iPhone 15 Pro Max 256GB",
-  description: "Concorra a um iPhone 15 Pro Max novinho na caixa lacrada com garantia Apple. O aparelho sera entregue diretamente na sua casa em ate 7 dias apos o sorteio. Cores disponiveis: Titanio Natural, Titanio Azul, Titanio Branco e Titanio Preto.",
-  prize: "iPhone 15 Pro Max",
-  price: 5.0,
-  total_numbers: 100,
-  draw_date: "2025-02-15",
-  status: "active",
-  created_at: "2025-01-01",
-  image_url: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60",
-}
-
-// Mock sold numbers
-const mockSoldNumbers: RaffleNumber[] = [
-  { number: 7, raffle_id: "1", status: "sold", buyer_name: "Joao" },
-  { number: 12, raffle_id: "1", status: "sold", buyer_name: "Maria" },
-  { number: 23, raffle_id: "1", status: "sold", buyer_name: "Pedro" },
-  { number: 34, raffle_id: "1", status: "reserved" },
-  { number: 45, raffle_id: "1", status: "sold", buyer_name: "Ana" },
-  { number: 56, raffle_id: "1", status: "sold", buyer_name: "Carlos" },
-  { number: 67, raffle_id: "1", status: "reserved" },
-  { number: 78, raffle_id: "1", status: "sold", buyer_name: "Julia" },
-  { number: 89, raffle_id: "1", status: "sold", buyer_name: "Lucas" },
-  { number: 99, raffle_id: "1", status: "sold", buyer_name: "Mariana" },
-]
-
 export default function RaffleDetailPage() {
   const params = useParams()
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([])
-  const [numbers, setNumbers] = useState<RaffleNumber[]>(mockSoldNumbers)
+  const [numbers, setNumbers] = useState<RaffleNumber[]>([])
+  const [raffle, setRaffle] = useState<Raffle>({
+    id: String(params?.id ?? ""),
+    title: "",
+    description: "",
+    prize: "",
+    price: 0,
+    total_numbers: 0,
+    draw_date: new Date().toISOString().slice(0, 10),
+    status: "active",
+    created_at: new Date().toISOString(),
+    image_url: "",
+  })
 
-  const raffle = mockRaffle // Will fetch from API based on params.id
+  useEffect(() => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const id = String(params?.id ?? "")
+    ;(async () => {
+      try {
+        const [rRes, nRes] = await Promise.all([
+          fetch(`${apiBase}/api/raffles/${id}`),
+          fetch(`${apiBase}/api/raffles/${id}/numbers`),
+        ])
+        if (rRes.ok) {
+          const r = (await rRes.json()) as Raffle
+          setRaffle(r)
+        }
+        if (nRes.ok) {
+          const ns = (await nRes.json()) as RaffleNumber[]
+          setNumbers(ns)
+        } else {
+          setNumbers([])
+        }
+      } catch {
+        setNumbers([])
+      }
+    })()
+  }, [params])
 
   const formattedPrice = new Intl.NumberFormat("pt-BR", {
     style: "currency",
